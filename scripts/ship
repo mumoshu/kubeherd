@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+
+set -e
+
+: ${app:=$(basename $(pwd))}
+: ${ns:=ship-${app}}
+: ${ts:=$(date +%s)}
+: ${kube_ver:=$(kubectl version --output json | jq -r .clientVersion.gitVersion)}
+: ${do_cleanup:=${CLEANUP:-}}
+
+echo app:${app} ns:${ns}
+
+_ensure_ns() {
+  if ! kubectl get ns ${ns} >/dev/null 1>&2; then
+    echo creating namespace ${ns}
+    kubectl create ns ${ns}
+  fi
+}
+
+deploy() {
+  _deploy_from_helm_template_apply
+}
+
+_deploy_from_helm_template_apply() {
+  render | apply
+  wait_until_ready
+}
+
+cleanup() {
+  render | delete
+  wait_until_deletion
+}
+
+render() {
+  helm template --name ${app}-${ts} --kube-version ${kube_ver} .
+}
+
+apply() {
+  kubectl apply -f - --namespace ${ns} --selector app=${app} --grace-period=60
+}
+
+wait_until_ready() {
+  echo waiting until your app to be ready...
+  sleep 1
+}
+
+delete() {
+  kubectl delete -f - --namespace ${ns} --selector app=${app}
+}
+
+wait_until_deletion() {
+  echo waiting until your old app to be deleted...
+  sleep 1
+}
+
+build() {
+  :
+  _rails_build
+  # TODO push
+
+  if [ -d k8s/ ]; then
+    echo removing directory k8s/...
+    rm -rf k8s/
+  fi
+  mkdir k8s/
+  echo rendering k8s/manifests-from-helm-template.yaml...
+  set -vx
+  helm template \
+    --name '{{build.name}}' \
+    --set 'image.repository=\{\{build.images[\"Dockerfile\"].split(\":\")[0]\}\},image.tag=\{\{build.images[\"Dockerfile\"].split(\":\")[1]\}\}' . \
+    > k8s/manifests-from-helm-template.yaml
+  forge build manifests
+  # TODO: fetch from service.yaml (.name)
+  service_name=hello-world
+  : forge rendered: .forge/k8s/$service_name/manifests-from-helm-template.yaml
+}
+
+_rails_build() {
+  set -vx
+  : forge will use the following metadata to build containers
+  forge build metadata
+  # (docker run) bundle install --path ...
+  # docker build -t ${app}:${ts} .
+  : building docker containers
+  forge build containers
+}
+
+test() {
+  :
+}
+
+switch() {
+  echo "switching to ${ts}..."
+  sleep 1
+  # TODO istioctl
+  echo "switched."
+}
+
+release() {
+  switch
+  echo "monitoring ${ts}..."
+  sleep 1
+  echo "all green."
+  echo "releasing ${app}..."
+  if [ ! -z "${do_cleanup}" ]; then
+    cleanup
+  else
+    echo "skipping cleanup... pls do it later!"
+  fi
+  echo released!
+}
+
+it() {
+  _ensure_ns
+
+  build
+  test
+  deploy
+  release
+  echo shipped!
+}
+
+"$@"

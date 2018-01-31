@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# Besides the tar command, all other output to standard out must 
+# be surpressed.  Otherwise, the tar stream will be corrupted.
+pushd ${HOME}/src >/dev/null
+
+echo saving artifacts from $(pwd) 1>&2
+
+ls -lah 1>&2
+
+if [ -d vendor -a -d node_modules ]; then
+    # all deps contents to tar stream
+    tar cf - vendor node_modules
+fi
+popd >/dev/null

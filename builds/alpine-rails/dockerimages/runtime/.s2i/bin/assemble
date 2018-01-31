@@ -1,0 +1,105 @@
+#!/bin/bash
+
+set -ve
+
+ls -lah /tmp
+
+ls -lah /root/src
+
+cd /root/src
+
+echo moving sources from /tmp/src/ to /root/src/
+
+# You can't move /tmp/src/* to overwride existing dirs under /root/src
+# Instead, create hardlinks and remove links from the old paths to immitate the behavior
+
+# temporarily set dotglob to include hidden files for cp
+shopt -s dotglob
+cp -rl /tmp/src/* /root/src/
+shopt -u dotglob
+
+rm -r /tmp/src
+
+ls -lah /root/src
+
+bundle exec rails app:update:bin
+bundle exec rake js:generate_locales
+bundle exec rake js:generate_routes
+bundle exec webpack
+
+if [ -d node_modules ]; then
+  echo removing node_modules...
+  rm -rf node_modules/
+fi
+
+for f in log/*.log; do
+  echo removing $f...
+  rm $f
+done
+
+if [ -d tmp/cache/webpacker ]; then
+  echo removing tmp/cache/webpacker...
+  rm -rf tmp/cache/webpacker
+fi
+
+if [ -d deploy ]; then
+  echo removing deploy/...
+  rm -rf deploy/
+fi
+
+if [ -d .github ]; then
+  echo removing .github/...
+  rm -rf .github/
+fi
+
+du -d 1 -h
+
+echo removing unneeded object files...
+
+find vendor/bundle -name \*.o | xargs rm
+find vendor/bundle -name \*.c | xargs rm
+find vendor/bundle -name \*.h | xargs rm
+find vendor/bundle -type f \( -path \*/test/\* -a -name \*test\*.rb \) | xargs rm
+find vendor/bundle -type f \( -path \*/spec/\* -a -name \*_spec.rb \) | xargs rm
+#find vendor/bundle -path \*test/\*test\*.rb | xargs rm
+#find vendor/bundle -path \spec/\*spec.rb | xargs rm
+rm -rf vendor/bundle/ruby/2.3.0/cache/
+
+echo removing ununeeded wkhtmltopdf binaries...
+
+ls -lah vendor/bundle/ruby/2.3.0/gems/wkhtmltopdf-binary-0.12.3.1/bin/
+
+rm vendor/bundle/ruby/2.3.0/gems/wkhtmltopdf-binary-0.12.3.1/bin/wkhtmltopdf_{linux,darwin}_x86
+
+# prune unnecessary files in oj
+rm -rf vendor/bundle/ruby/2.3.0/gems/oj-3.3.8/ext/oj/
+
+# prune unnecessary files in ffi
+rm -rf vendor/bundle/ruby/2.3.0/gems/ffi-*/ext/ffi_c/libffi
+
+# prune unnecessary files in nokogiri
+rm -rf vendor/bundle/ruby/2.3.0/gems/nokogiri-*/test/files
+
+# prune unnecessary files in pry-doc
+rm -rf vendor/bundle/ruby/2.3.0/gems/pry-doc-0.11.1/lib/pry-doc/docs/2{0,1,2,4,5}
+
+# prune unnecessary files in spreadsheet
+rm -rf vendor/bundle/ruby/2.3.0/gems/spreadsheet-1.1.5/*.pdf
+
+# Give up pruning files related to these gems..
+# Just doesn't worth the effort.
+# - brakeman
+# - yard
+# - byebug
+# - parser
+
+du -d 1 -h vendor/
+
+echo creating app.tar.gz...
+
+if [ -f app.tar.gz ]; then
+  echo removing app.tar.gz...
+  rm app.tar.gz
+fi
+
+tar czvf app.tar.gz . > /dev/null

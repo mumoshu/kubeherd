@@ -1,0 +1,3 @@
+#!/bin/bash
+
+echo save-artifacts is noop 1>&2

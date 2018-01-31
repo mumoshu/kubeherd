@@ -1,0 +1,43 @@
+#!/bin/bash
+
+set -e
+
+APP_ROOT=$HOME/src
+
+mkdir -p ${APP_ROOT}
+
+# restore build artifacts
+echo "checking /tmp/artifacts..."
+if [ "$(ls /tmp/artifacts/ 2>/dev/null)" ]; then
+    pushd /tmp/artifacts
+    for d in $(ls /tmp/artifacts); do
+      echo loading $d to ${APP_ROOT}/
+      set -vx
+      mv $d ${APP_ROOT}/
+    done
+    popd
+fi
+
+echo moving required files from /tmp/src/ to ${APP_ROOT}/
+
+mv /tmp/src/{package.json,yarn.lock,Gemfile,Gemfile.lock} $APP_ROOT/
+
+if [ -d /tmp/github ]; then
+  echo using github credential to access private github repos
+
+  export GITHUB_USERNAME=$(cat /tmp/github/username)
+  export GITHUB_TOKEN=$(cat /tmp/github/token)
+
+  git config --global url."https://github.com/".insteadOf \
+    ssh://git@github.com/
+  git config --global credential.helper github-token
+fi
+
+# build application artifacts
+pushd ${APP_ROOT}
+
+bundle install --deployment --clean --without development,test --retry 5 --jobs 2
+
+yarn install
+
+popd

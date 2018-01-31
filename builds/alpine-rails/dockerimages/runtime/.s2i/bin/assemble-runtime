@@ -1,0 +1,35 @@
+#!/bin/bash
+
+set -e
+
+echo assemble-runtime running in $(pwd)
+
+ls -lah app.tar.gz
+
+rm -rf /tmp/app
+mkdir /tmp/app
+
+tar zxf app.tar.gz -C /tmp/app
+
+echo listing source files:
+
+du -h -d 1 /tmp/app
+
+echo listing destination files:
+
+du -h -d 1 /app
+
+apk add --update --no-cache rsync
+
+# /app/app.tar.gz is also removed by this rsync
+# so you don't need to explicitly do that like `rm app.tar.gz` afterwards.
+rsync -ah --delete /tmp/app/ /app
+
+apk del rsync
+
+echo listing destination files:
+
+du -h -d 1 /app
+
+rm -rf /tmp/app
+
