@@ -1,0 +1,137 @@
+#!/bin/bash
+
+set -vxeu
+
+REGISTRY=${REGISTRY:-}
+if [ ! -z "${REGISTRY}" ]; then
+  REGISTRY=${REGISTRY}/
+fi
+
+REPO=${REPO:-${REGISTRY}$(basename `git rev-parse --show-toplevel`)}
+TAG=${TAG:-dev}
+CACHE_TAG=cache
+MONO_REPO=1
+
+if [ ! -z "${UPLOAD_CACHE_IMAGES:-}" ]; then
+  UPLOAD_BUILDER_CACHE_IMAGE=1
+  UPLOAD_RUNTIME_CACHE_IMAGE=1
+fi
+
+echo Building ${REPO}:${TAG}...
+
+scratch=$(mktemp -d -t tmp.XXXXXXXXXX)
+function finish {
+  rm -rf "$scratch"
+}
+trap finish EXIT
+
+if [ ! -z "${GITHUB_USERNAME:-}" ]; then
+  BUILD_TIME_GITHUB_CREDS=${scratch}/github
+  mkdir -p ${BUILD_TIME_GITHUB_CREDS}
+
+  echo "${GITHUB_USERNAME}" > ${BUILD_TIME_GITHUB_CREDS}/username
+  echo "${GITHUB_TOKEN}" > ${BUILD_TIME_GITHUB_CREDS}/token
+fi
+
+BUILDER_BASE_HASH=$(cat deploy/Dockerfile.builder | md5)
+
+if [ -z "${MONO_REPO}" ]; then
+  BUILDER_BASE_IMAGE=${REPO}/builder:${BUILDER_BASE_HASH}
+  BUILDER_CACHE_IMAGE=${REPO}/builder:${BUILDER_BASE_HASH}-${CACHE_TAG}
+  BUILDER_IMAGE=${REPO}/builder:${TAG}
+else
+  BUILDER_BASE_IMAGE=${REPO}:builder-${BUILDER_BASE_HASH}
+  BUILDER_CACHE_IMAGE=${REPO}:builder-${BUILDER_BASE_HASH}-${CACHE_TAG}
+  BUILDER_IMAGE=${REPO}:builder-${TAG}
+fi
+
+RUNTIME_BASE_HASH=$(cat deploy/Dockerfile.runtime | md5)
+
+if [ -z "${MONO_REPO}" ]; then
+  RUNTIME_BASE_IMAGE=${REPO}/runtime:${RUNTIME_BASE_HASH}
+  RUNTIME_CACHE_IMAGE=${REPO}/runtime:${RUNTIME_BASE_HASH}-${CACHE_TAG}
+else
+  RUNTIME_BASE_IMAGE=${REPO}:runtime-${RUNTIME_BASE_HASH}
+  RUNTIME_CACHE_IMAGE=${REPO}:runtime-${RUNTIME_BASE_HASH}-${CACHE_TAG}
+fi
+
+RUNTIME_IMAGE=${REPO}:${TAG}
+
+if [ ! -z "${FORCE_REBUILD:-}" ]; then
+  if docker inspect ${BUILDER_CACHE_IMAGE} >/dev/null; then
+    docker rmi ${BUILDER_CACHE_IMAGE}
+  fi
+  if docker inspect ${BUILDER_BASE_IMAGE} >/dev/null; then
+    docker rmi ${BUILDER_BASE_IMAGE}
+  fi
+  if docker inspect ${RUNTIME_CACHE_IMAGE} >/dev/null; then
+    docker rmi ${RUNTIME_CACHE_IMAGE}
+  fi
+  if docker inspect ${RUNTIME_BASE_IMAGE} >/dev/null; then
+    docker rmi ${RUNTIME_BASE_IMAGE}
+  fi
+fi
+
+if ! docker image inspect ${BUILDER_BASE_IMAGE} && ! docker pull ${BUILDER_BASE_IMAGE}; then
+  echo ${BUILDER_BASE_IMAGE} does not exist. Building from scratch.
+  docker build -f deploy/Dockerfile.builder -t ${BUILDER_BASE_IMAGE} .
+fi
+
+INJECT=""
+
+if [ ! -z "${BUILD_TIME_GITHUB_CREDS:-}" ]; then
+  INJECT="--inject ${BUILD_TIME_GITHUB_CREDS}:/tmp/github"
+else
+  INJECT="--inject ~/.ssh/:/root/.ssh"
+fi
+
+if [ ! -z "${S2I_INCREMENTAL_BUILD:-}" ]; then
+  s2i build . ${BUILDER_BASE_IMAGE} ${BUILDER_CACHE_IMAGE} \
+    --scripts-url file://$HOME/sandbox/helm/myproj/charts/myapp1/.s2i/bin \
+    ${INJECT} \
+    --incremental --incremental-pull-policy never
+else
+  if ! docker image inspect ${BUILDER_CACHE_IMAGE} && ! docker pull ${BUILDER_CACHE_IMAGE} ; then
+    echo ${BUILDER_CACHE_IMAGE} does not exist. Falling-back to base on ${BUILDER_BASE_IMAGE}.
+
+    echo tagging ${BUILDER_BASE_IMAGE} to ${BUILDER_CACHE_IMAGE}
+    docker tag ${BUILDER_BASE_IMAGE} ${BUILDER_CACHE_IMAGE}
+  fi
+  s2i build . ${BUILDER_CACHE_IMAGE} ${BUILDER_IMAGE} \
+    --scripts-url file://$HOME/sandbox/helm/myproj/charts/myapp1/.s2i/bin \
+    ${INJECT}
+fi
+
+if [ ! -z "${UPLOAD_BUILDER_CACHE_IMAGE:-}" ]; then
+  echo Tagging ${BUILDER_IMAGE} as ${BUILDER_CACHE_IMAGE}
+  docker tag ${BUILDER_IMAGE} ${BUILDER_CACHE_IMAGE}
+  echo Uploading ${BUILDER_CACHE_IMAGE}.
+  docker push ${BUILDER_CACHE_IMAGE}
+fi
+
+if ! docker image inspect ${RUNTIME_BASE_IMAGE} && ! docker pull ${RUNTIME_BASE_IMAGE}; then
+  echo ${RUNTIME_BASE_IMAGE} does not exist. Building from scratch.
+  docker build -f deploy/Dockerfile.runtime -t ${RUNTIME_BASE_IMAGE} .
+fi
+
+if ! docker image inspect ${RUNTIME_CACHE_IMAGE} && ! docker pull ${RUNTIME_CACHE_IMAGE}; then
+  echo ${RUNTIME_CACHE_IMAGE} does not exist. Falling back to use ${RUNTIME_BASE_IMAGE} as the base image.
+  echo tagging ${RUNTIME_BASE_IMAGE} to ${RUNTIME_CACHE_IMAGE}
+  docker tag ${RUNTIME_BASE_IMAGE} ${RUNTIME_CACHE_IMAGE}
+fi
+
+s2i build . ${BUILDER_IMAGE} ${RUNTIME_IMAGE} --scripts-url file://$HOME/sandbox/helm/myproj/runtime/.s2i/bin --runtime-image ${RUNTIME_CACHE_IMAGE} --runtime-artifact /root/src/app.tar.gz
+
+if [ ! -z "${UPLOAD_RUNTIME_CACHE_IMAGE:-}" ]; then
+  echo Tagging ${RUNTIME_IMAGE} as ${RUNTIME_CACHE_IMAGE}
+  docker tag ${RUNTIME_IMAGE} ${RUNTIME_CACHE_IMAGE}
+  echo Uploading ${RUNTIME_CACHE_IMAGE}.
+  docker push ${RUNTIME_CACHE_IMAGE}
+fi
+
+echo Successfully build ${RUNTIME_IMAGE}. 
+
+if [ ! -z "${UPLOAD_IMAGE:-}" ]; then
+  echo Uploading ${RUNTIME_IMAGE}
+  docker push ${RUNTIME_IMAGE}
+fi
