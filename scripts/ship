@@ -54,10 +54,15 @@ wait_until_deletion() {
 }
 
 build() {
-  :
-  _rails_build
-  # TODO push
+  build_images
+  build_manifests
+}
 
+build_images() {
+  _rails_build
+}
+
+build_manifests() {
   if [ -d k8s/ ]; then
     echo removing directory k8s/...
     rm -rf k8s/

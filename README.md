@@ -2,9 +2,12 @@
 
 A opinionated toolkit to automate your application release process on top of Kubernetes on AWS.
 
+## Assumptions
+
 It is **opinionated** in the sense that it assumes that:
 
-> Your Kubernetes on AWS clusters are not pets but cattles, like EC2 instances combined with UserData/LaunchConfiguration/ASG, hence any cluster can be recreated anytime without worrying anything.
+1. Your Kubernetes on AWS clusters are not pets but cattles, like EC2 instances combined with UserData/LaunchConfiguration/ASG, hence any cluster can be recreated anytime without worrying anything.
+2. Your Kubernetes on AWS clusters should not serve persistent databases or persistent cache stores. Delegate those to AWS. Use RDS, Elasticache, ES, etc.
 
 ## Goal
 
@@ -32,7 +35,33 @@ Writing a helm chart to maintain your K8S on AWS workload in a highly-avaialble,
 
 This toolkit provides a reusable and/or educative helm charts to make it easier for most people.
 
-## No goals
+### Automatic redeployment
+
+Recreating your cluster requires you to gather/reproduce the whole apps which were intended to be running on the old cluster to the new one.
+In case you have a StatefulSet running on the old node, migration from old to new one is even harder.
+
+This toolkit "resolves" this problem by forcing you:
+
+- to NOT deploy any stateful workloads on Kubernetes on AWS. Use [kube-ingress-aws-controller](https://github.com/zalando-incubator/kube-ingress-aws-controller) instead.
+- to NOT use k8s' `Service` of `type: LoadBalancer`. Use other than that to automatically update existing ELBs to add the worker nodes in the new k8s cluster.
+
+while allowing you:
+
+- to have an in-cluster CI pipeline reacts by deployments the required apps whenever a cluster starts and GitHub deployments are created.
+
+### Tech stacks
+
+This toolkit has chosen the following solutions for various reasons
+
+#### nginx-ingress-controller
+
+We chose the nginx ingress because it supports widest feature set compared to the alternatives: Skipper, Istio Ingress, Istio Gateway, Ambassador, Contour
+
+- TCP/UDP load-balancing
+- HTTP->HTTPS redirecting
+- and [so on](https://github.com/kubernetes/contrib/tree/master/ingress/controllers/nginx/examples)
+
+## Non goals
 
 ### Re-inventing existing tools
 

@@ -1,0 +1,16 @@
+#!/usr/bin/env variant
+
+inputs:
+- name: foo
+
+flows:
+
+- name: it
+  inputs:
+  - name: bar
+  script: |
+    echo echo {{.bar}}
+
+- name: build
+  script: |
+    scripts/ship-build
