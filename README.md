@@ -1,6 +1,6 @@
-# Ship
+# kubeherd
 
-A opinionated toolkit to automate your application release process on top of Kubernetes on AWS.
+A opinionated toolkit to herd your ephemeral Kubernetes clusters.
 
 ## Assumptions
 
@@ -11,7 +11,7 @@ It is **opinionated** in the sense that it assumes that:
 
 ## Goal
 
-Automate your application release process as much as possible.
+Automate your cluster management tasks and application release process as much as possible.
 
 ## Scope
 
@@ -48,6 +48,12 @@ This toolkit "resolves" this problem by forcing you:
 while allowing you:
 
 - to have an in-cluster CI pipeline reacts by deployments the required apps whenever a cluster starts and GitHub deployments are created.
+
+### Machine image builds
+
+It is often cumbersome to update your OS on every node. Even with Container Linux, the standard method of enabling locksmithd + update_engine, or even container-linux-update-operator don't fit when you bake specific binaries and images into machine images. It also doesn't work well with ASG and Spot Fleets as an OS update doesn't (of course) update the launch configuration/specification to have a newer AMI ID. It eventually results in unnecessary rolling-updates of nodes.
+
+`kubeherd build ami` invokes a packer build to produce an AMI based on the latest Container Linux release.
 
 ### Tech stacks
 
@@ -112,4 +118,3 @@ Which periodically invokes the following steps to sync the infrastructure:
 Note: post-install job to `brig run` the per-microservice pipeline for initial deployment
 
 And after that, per-microservice brigade project is responsible to run the app deployment on each github webhook event.
-
