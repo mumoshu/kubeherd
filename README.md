@@ -69,3 +69,32 @@ This toolkit does its best to reuse existing tools and adapt your existing, used
 
 For example, this toolkit should not force you to write your k8s manifest as jsonnet, json, yaml, golang-template, jinja2, etc.
 You should be able to bring your existing template engine to this toolkit and it should be a matter of invoking the engine to render manifests consumed by the toolkit.
+
+## Usage
+
+Run the below bash snippet on cluster startup/cluster update:
+
+```
+# possibly inside userdata of a controller nodes
+
+docker run --rm mumoshu/kube-hearder:$ver init --github-repo github.com:yourorg/yourrepo.git --github-username mybotname --parameter-store-key myghtoken
+```
+
+Note: A set of IAM permissions to access AWS parameter store for retrieving a github token is required
+
+This will invoke the following steps:
+
+- `helm init --upgrade --version $chart_ver --namespace kube-system kube-hearder charts/kube-hearder-controller` to install/uprgade a brigade project for the system
+
+Note: post-install job to `brig run` the per-cluster pipeline for initial deployment
+
+Which periodically invokes the following steps to sync the infrastructure:
+
+- `git clone/fetch/checkout the repo`
+- `helm upgrade --install kube-herder charts/kube-hearder -f repo/.kube-herder/config.yaml`
+- `for n in $microservices; do git clone $(git-repo $n) sourcetree/$n && helm upgrade --install $n-infra charts/namespace-defaults -f sourcetree/$n/.kube-herder/config.yaml; done`
+
+Note: post-install job to `brig run` the per-microservice pipeline for initial deployment
+
+And after that, per-microservice brigade project is responsible to run the app deployment on each github webhook event.
+
