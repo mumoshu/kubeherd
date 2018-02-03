@@ -77,6 +77,7 @@ You should be able to bring your existing template engine to this toolkit and it
 - helm for simple workflows(install -> post-install) and k8s manifest templating/packaing
 - helmfile to declare a set of local/remote helm charts used for per-microservice deployment
 - helm-secrets for managing per-cluster, per-microservice secrets
+- smith for possible support for dependency management after service catalog adoption
 - prometheus for optional canary analysis and automated rollback
 - elasticsearch-operator for persisting ephemeral in-cluster logs for summarizing logs prior to the deployment rollback
 - your preferred SaaS or self-hosted services for cross-cluster monitoring and cross-cluster distributed logging
