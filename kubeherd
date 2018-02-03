@@ -11,6 +11,34 @@ flows:
   script: |
     echo echo {{.bar}}
 
-- name: build
+- name: init
+  inputs:
+  - name: github-org
+  - name: github-user
+  - name: github-repo
+  - name: github-token
+  - name: slack-user
+  - name: slack-token
   script: |
-    scripts/ship-build
+    echo test
+
+- name: build
+  flows:
+  - name: dockerimage
+    script: |
+      builds/alpine-rails/imagebuild
+  - name: ami
+    script: |
+      packer build
+
+- name: deploy
+  script: |
+    if [ ! -f $(which helmfile) ]; then
+      echo 'no executable named `helmfile` found in PATH' 1>&2
+      exit 1
+    fi
+    if [ ! -f charts.yaml ]; then
+      echo "no helmfile(charts.yaml) found in $(pwd)" 1>&2
+      exit 2
+    fi
+    helmfile sync
