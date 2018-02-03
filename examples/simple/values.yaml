@@ -1,0 +1,17 @@
+# cluster.id and env are set via command-line flags.
+# only static settings reside in this file
+
+cluster:
+  github:
+    repository: "yourorgname:yourreponame"
+    machineuser: "yourbot"
+
+# each service should have a set of config files
+# used by herder to create per-microservice brigade-project
+services:
+  your-svc-x:
+    brigade:
+      config: brig-project-tmpl-1
+  your-svc-y:
+    brigade:
+      config: brig-project-tmpl-2
