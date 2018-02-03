@@ -1,0 +1,3 @@
+- filebeat --lumberjack--> fluentd --> s3, kinesis, datadag, etc.
+- `filebeat` for auto-discovery with conditional log parser selection
+- `fluentd` for advanced aggregation/transforming of log events, and reliable log forwarding capability
