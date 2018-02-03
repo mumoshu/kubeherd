@@ -23,7 +23,7 @@ Building a secure, small container image for running script languages like ruby,
 Building docker images from your private git repos with plain docker builds, multi-stage builds and build-args are wrong in several ways.
 Many exsiting solutions either give up utilizing docker layer caches and therefore docker builds are slow, or give up removing SSH private keys and/or GitHub personal access tokens from the resulting docker images.
 
-This toolkit provides reusable, and/or educative scripts to make it easier for most people.
+Solution: `kubeherd build dockerimage` builds pulls image layer cache, inject secrets, docker-run and docker-commit to build an image. Under the hood it utilizes reusable and/or educative scripts contained in this repo.
 
 ### Common helm charts
 
@@ -35,25 +35,25 @@ Writing a helm chart to maintain your K8S on AWS workload in a highly-avaialble,
 
 This toolkit provides a reusable and/or educative helm charts to make it easier for most people.
 
-### Automatic redeployment
+### Automatic (re)deployment
 
-Recreating your cluster requires you to gather/reproduce the whole apps which were intended to be running on the old cluster to the new one.
-In case you have a StatefulSet running on the old node, migration from old to new one is even harder.
+Recreating your cluster requires you to gather/reproduce the whole apps which were intended to be running on the old cluster to the new one. Do you manually kick your Jenkins to deploy all of your apps to the new cluster?
 
-This toolkit "resolves" this problem by forcing you:
+Solution: `kubeherd deploy` deploys a set of helm charts declared in your charts.yaml(helmfile), so that
 
-- to NOT deploy any stateful workloads on Kubernetes on AWS. Use [kube-ingress-aws-controller](https://github.com/zalando-incubator/kube-ingress-aws-controller) instead.
-- to NOT use k8s' `Service` of `type: LoadBalancer`. Use other than that to automatically update existing ELBs to add the worker nodes in the new k8s cluster.
+- You have an in-cluster CI pipeline per kubeherd-system and per microservice/namespace reacts by installing the required helm charts whenever a cluster starts and GitHub deployments are created.
 
-while allowing you:
 
-- to have an in-cluster CI pipeline reacts by deployments the required apps whenever a cluster starts and GitHub deployments are created.
+Note that this relies the following assumptions:
+
+- DO NOT deploy any stateful workloads on Kubernetes on AWS. Use [kube-ingress-aws-controller](https://github.com/zalando-incubator/kube-ingress-aws-controller) instead.
+- DO NOT use k8s' `Service` of `type: LoadBalancer`. Use other than that to automatically update existing ELBs to add the worker nodes in the new k8s cluster.
 
 ### Machine image builds
 
 It is often cumbersome to update your OS on every node. Even with Container Linux, the standard method of enabling locksmithd + update_engine, or even container-linux-update-operator don't fit when you bake specific binaries and images into machine images. It also doesn't work well with ASG and Spot Fleets as an OS update doesn't (of course) update the launch configuration/specification to have a newer AMI ID. It eventually results in unnecessary rolling-updates of nodes.
 
-`kubeherd build ami` invokes a packer build to produce an AMI based on the latest Container Linux release.
+Solution: `kubeherd build ami` invokes a packer build to produce an AMI based on the latest Container Linux release.
 
 ### Tech stacks
 
