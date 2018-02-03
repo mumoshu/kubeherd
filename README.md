@@ -79,6 +79,10 @@ You should be able to bring your existing template engine to this toolkit and it
 - helm-secrets for managing per-cluster, per-microservice secrets
 - prometheus for optional canary analysis and automated rollback
 - elasticsearch-operator for persisting ephemeral in-cluster logs for summarizing logs prior to the deployment rollback
+- your preferred SaaS or self-hosted services for cross-cluster monitoring and cross-cluster distributed logging
+  - sysdig
+  - datadog
+- your preferred APM for cross-cluster, app-centric view of your application healthiness
 
 ## Usage
 
