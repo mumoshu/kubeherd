@@ -70,6 +70,16 @@ This toolkit does its best to reuse existing tools and adapt your existing, used
 For example, this toolkit should not force you to write your k8s manifest as jsonnet, json, yaml, golang-template, jinja2, etc.
 You should be able to bring your existing template engine to this toolkit and it should be a matter of invoking the engine to render manifests consumed by the toolkit.
 
+## Utilized existing solutions
+
+- brigade for a workflow of k8s jobs
+- plain-old k8s service for optional blue-green deployment capability
+- helm for simple workflows(install -> post-install) and k8s manifest templating/packaing
+- helmfile to declare a set of local/remote helm charts used for per-microservice deployment
+- helm-secrets for managing per-cluster, per-microservice secrets
+- prometheus for optional canary analysis and automated rollback
+- elasticsearch-operator for persisting ephemeral in-cluster logs for summarizing logs prior to the deployment rollback
+
 ## Usage
 
 Run the below bash snippet on cluster startup/cluster update:
