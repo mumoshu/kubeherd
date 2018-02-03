@@ -20,7 +20,21 @@ flows:
   - name: slack-user
   - name: slack-token
   script: |
-    echo test
+    export KUBEHERD_GITHUB_ORG={{.github_org}}
+    export KUBEHERD_GITHUB_USER={{.github_user}}
+    export KUBEHERD_GITHUB_REPO={{.github_repo}}
+    export KUBEHERD_GITHUB_TOKEN={{.github_token}}
+    export KUBEHERD_SLACK_USER={{.slack_user}}
+    export KUBEHERD_SLACK_TOKEN={{.slack_token}}
+    kubeherd init system
+
+  flows:
+  - name: system
+    script: |
+      helmfile -f helmfiles/system.yaml
+  - name: user
+    script: |
+      helmfile -f helmfiles/user.yaml
 
 - name: build
   flows:
