@@ -31,16 +31,16 @@ flows:
   flows:
   - name: system
     script: |
-      helmfile -f helmfiles/system.yaml
+      helmfile sync -f helmfiles/system.yaml
   - name: user
     script: |
-      helmfile -f helmfiles/user.yaml
+      helmfile sync -f helmfiles/user.yaml
 
 - name: build
   flows:
   - name: dockerimage
     script: |
-      builds/alpine-rails/imagebuild
+      $(dirname $0)builds/alpine-rails/imagebuild
   - name: ami
     script: |
       packer build
@@ -56,3 +56,15 @@ flows:
       exit 2
     fi
     helmfile sync
+
+- name: undeploy
+  script: |
+    if [ ! -f $(which helmfile) ]; then
+      echo 'no executable named `helmfile` found in PATH' 1>&2
+      exit 1
+    fi
+    if [ ! -f charts.yaml ]; then
+      echo "no helmfile(charts.yaml) found in $(pwd)" 1>&2
+      exit 2
+    fi
+    helmfile delete
