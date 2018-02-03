@@ -77,10 +77,10 @@ Run the below bash snippet on cluster startup/cluster update:
 ```
 # possibly inside userdata of a controller nodes
 
-docker run --rm mumoshu/kube-hearder:$ver init --github-repo github.com:yourorg/yourrepo.git --github-username mybotname --parameter-store-key myghtoken
+docker run --rm mumoshu/kube-hearder:$ver init --github-repo github.com:yourorg/yourrepo.git --github-username mybotname --parameter-store-key-ghtoken myghtoken --parameter-store-key-slacktoken myslacktoken
 ```
 
-Note: A set of IAM permissions to access AWS parameter store for retrieving a github token is required
+Note: A set of IAM permissions to access AWS parameter store for retrieving a github/slack token is required
 
 This will invoke the following steps:
 
