@@ -1,0 +1,12 @@
+apiVersion: v1
+entries:
+  namespace-defaults:
+  - apiVersion: v1
+    created: 2018-02-06T22:09:09.497036628+09:00
+    description: A Helm chart for Kubernetes
+    digest: 6a86dd187a8df31258fcda019d7e1b8af3095041e2de67984f71df17c920b1b7
+    name: namespace-defaults
+    urls:
+    - https://mumoshu.github.com/kubeherd/namespace-defaults-0.1.0.tgz
+    version: 0.1.0
+generated: 2018-02-06T22:09:09.493808391+09:00

@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+mkdir -p build/charts
+
+pushd build/charts
+
+for c in ../../charts/*; do
+  helm package $c || true
+done
+
+popd
+
+mkdir -p docs/
+
+for c in build/charts/*.tgz; do
+  echo moving $c to docs/
+  mv $c docs/
+done
+
+helm repo index docs/ --url https://mumoshu.github.com/kubeherd
