@@ -160,17 +160,25 @@ Your whole projects structure would look like:
   - `CLUSTER=$cluster helmfile sync -f helmfile`
     - `CLUSTER` is embeded into ENV of the brigade project so that it can be accessed from within the pipeline
   - A cluster-level brigade pipeline is created
-  - App-level brigade pipeline(s) are created
-- The cluster-level brigade pipeline runs the following steps on each webhook event(github deployment) for `github.com/your-org/your-cluster-repo`
+    - A pipeline consists of a brigade cluster and 1 or more brigade project(s)
+  - App-level brigade pipelines are created
+    - 2 pipelines per app: A app-managing one and a brigade-managing one
+    - The brigade-managing one belongs to the cluster repo, whereas
+    - The app-managing one belnogs to the app repo
+- The cluster-level, brigade-managing pipeline runs the following steps on each webhook event(github deployment) for `github.com/your-org/your-cluster-repo`
   - `git clone github.com/your-org/your-cluster-repo`
   - `cd your-cluster-repo/environments/$env`
   - `sops -d brigade-project.secrets.yaml.enc > brigade-project.secrets.yaml`
   - `CLUSTER=$cluster helmfile sync -f helmfile`
   - The brigade pipeline for the cluster is updated
-- The app-level brigade pipeline runs the following steps on each webhook event(github deployment) for `github.com/your-org/your-app1-repo`
+  - for app in $apps:
+    - `cd your-cluster-repo/environments/$env/app-infra`
+    - `sops -d brigade-project.secrets.yaml.enc > brigade-project.secrets.yaml`
+    - `APP=$app CLUSTER=$cluster helmfile sync -f helmfile`
+    - The brigade pipelines for apps are updated
+- The app-level, app-managing brigade pipeline runs the following steps on each webhook event(github deployment) for `github.com/your-org/your-app1-repo`
   - `git clone github.com/your-org/your-app1-repo`
   - `cd your-app1-repo/ci/environments/$env`
   - `sops -d brigade-project.secrets.yaml.enc > brigade-project.secrets.yaml`
   - `helmfile sync -f ../../ci/helmfile`
-  - The app-level brigade-pipeline is updated
-  - The app managed by the pipeline is updated
+  - The app managed by this pipeline is updated
