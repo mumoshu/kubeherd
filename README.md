@@ -207,7 +207,7 @@ Your whole projects structure would look like:
 
 - `brigcluster worker create $app --repository $repo --environment $env --namespace $kubeherd_ns --image $image`
 
-#### `sdf4k`(Simple Deployment Facade for Kubernetes) for consistent deployment experience regardless of tools
+### `sdf4k`(Simple Deployment Facade for Kubernetes) for consistent deployment experience regardless of tools
   
 - `sdf4k $path --namespace $ns`
   - Runs:
