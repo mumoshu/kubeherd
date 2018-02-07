@@ -153,42 +153,54 @@ Your whole projects structure would look like:
 
 ## Commands
 
-- `kubeherd ssm put $name $value`
+- `brigadm ssm put $name $value`
   - `aws ssm put-parameter --name "$name" --value "$value" --type String --overwrite`
 
-- `kubeherd ssm get $name`
+- `brigadm ssm get $name`
   - `aws ssm get-parameters --names "$name" | jq -rc '.Parameters[0].Value'
 
-- `kubeherd init [--namespace $ns] --repository=$repo --ssh-key-from-ssm-parameter=$param`
+- `brigadm init --namespace $ns] --repository=$repo --ssh-key-from-ssm-parameter=$param`
   - Runs:
     - `kubeherd ssm get $param > tmp-key`
     - `kubeherd init --namespace $ns --repository=$repo --ssh-key-from-path=tmp-key`
     - `rm tmp-key`
 
-- `kubeherd init [--namespace $ns] --repository=$repo --ssh-key-from-path=$key`
+- `brigadm init [--namespace $ns] --repository=$repo --ssh-key-from-path=$key` [--default-script-from-path=$script]
   - Runs:
     - `helm repo add brigade https://azure.github.io/brigade`
     - `helm upgrade brigade brigade/brigade --install --set rbac.enabled=true --namespace $ns --tiller-namespace $ns`
-    - `echo 'sshKey: |' > values.yaml
-    - `cat $key | sed 's/^/  /' >> values.yaml
+    - `echo 'sshKey: |' > values.yaml`
+    - `cat $key | sed 's/^/  /' >> values.yaml`
+    - `cat $script | sed `s/^/  /' >> values.yaml`
     - `helm upgrade brigade-project brigade/brigade-project --install --set project=<component>,repository=github.com/$repo,cloneURL=git@github.com:$repo.git -f values.yaml`
 
-- `kubeherd run "$cmd" [--namespace $ns] [--image $image] [--commit $commit]`
+- `brigadm run "$cmd" [--namespace $ns] [--image $image] [--commit $commit]`
   - Runs:
      - `echo 'const { events, Job, Group} = require("brigadier"); events.on("run", (e, p) => { var j = new Job("kubeherd-run", "$image"); j.tasks = ["'$cmd'"]; j.run() });' > tmp-brigade.js`
-     - `brig run $ns --event run --file tmp-brigade.js`
+     - `brig run $ns --namespace $ns --event run --file tmp-brigade.js`
      - `rm tmp-brigade.js`
 
-- `kubeherd bootstrap <component> --repository $repo --path environments/$env/<component> --namespace $ns`
+- `brigadm wait init --namespace $ns`
+  - `while ! brig project list --namespace $ns; do sleep 1; done`
+
+- `brigcluster master init --repository $sys_repo --environmnent $env --path environments/$env/<component> --namespace $sys_ns --ssh-key-from-ssm-parameter=$key`
   - Runs:
-    - `kubeherd deploy brigade --namespace $ns`
-    - `git clone https://github.com/mumoshu/kubeherd`
-    - `brig run <component> --event deployment --file kubeherd/<component>/brigade.js`
+    - `if ! brigadm status; then brigadm init --namespace ${sys_ns}-boot --repository=$kubeherd_repo --ssh-key-from-ssm-parameter=$key; fi`
+    - `brigadm run "if [ -e $path/brigade.default.js ]; then cp /kubeherd/brigade.default.$path/; fi; brigadm init --namespace $sys_ns --repository=$sys_repo --ssh-key-from-ssm-paramaeter=$key --default-script=$path/brigade.default.js" --namespace ${sys_ns} --
+    - `brigadm wait --namespace $sys_ns`
+    - `brig run $sys_ns --namespace $sys_ns --event init`
+
+- `brigcluster master update --repository $sys_repo --environmnent $env --path environments/$env/<component> --namespace $sys_ns --ssh-key-from-ssm-parameter=$key`
+
+- `brigcluster worker init $app --repository $repo --environment $env --namespace $kubeherd_ns --image $image`
+  - `brigadm run "default_script=environments/$env/brigade.default.js; brigadm init --namespace $app --repository $repo --ssh-key-from-path$key --default-script $default_script" --namespace $kubeherd_ns --image $image; brig run $app --namespace $app --event init``
+
+- `brigcluster worker update $app --repository $repo --environment $env --namespace $kubeherd_ns --image $image`
   
-- `kubeherd apply <component> --path $path`
+- `sdf4k $path --namespace $ns`
   - Runs:
-    - `kubeherd init --namespace $ns` (if required by the project)
     - Populate `GIT_TAG` env var with `git describe --tags --always 2>/dev/null`
+    - `cd $path`
     - If `$path/helmfile` exists:
       - Run `helmfile sync -f helmfile`
     - If `chart/chart.yaml` exists:
