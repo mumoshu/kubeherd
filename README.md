@@ -182,11 +182,22 @@ Note that, `$env=test` and `$cluster=k8stest1` for example. There could be 2 or 
 
 **On the cluster-level, brigade-managing pipeline:**
 
+- `kubeherd bootstrap <component> --repository $gitrepo --path environments/$env/<component>`
+  - Runs `git clone $gitrepo && cd $projectroot/$path && `kubeherd apply <component> --path .`
+- `kubeherd apply <component> --path $path`
+  - Populate `GIT_TAG` env var with `git describe --tags --always 2>/dev/null`
+  - If `$path/helmfile` exists:
+    - Run `helmfile sync -f helmfile`
+  - If `chart/chart.yaml` exists:
+    - Run `helm upgrade <component> ./chart --install -f <values.yaml> -f <secrets.yaml>`
+  - If `app.yaml` exists:
+    - `ks apply default`
+
 On the first run:
 
 - `git clone github.com/your-org/your-cluster-repo`
 - `cd your-cluster-repo/environments/$env`
-- `kubeherd init master`
+- `kubeherd bootstrap master`
   - `sops -d brigade-project.secrets.yaml.enc > brigade-project.secrets.yaml`
   - `CLUSTER=$cluster helmfile sync -f helmfile`
   - The brigade pipeline for the cluster is updated
