@@ -182,8 +182,13 @@ Note that, `$env=test` and `$cluster=k8stest1` for example. There could be 2 or 
 
 **On the cluster-level, brigade-managing pipeline:**
 
-- `kubeherd bootstrap <component> --repository $gitrepo --path environments/$env/<component>`
-  - Runs `git clone $gitrepo && cd $projectroot/$path && `kubeherd apply <component> --path .`
+- `kubeherd bootstrap <component> --repository $repo --path environments/$env/<component> --namespace $ns`
+  - Runs:
+    - `helm upgrade brigade brigade/brigade --install --set rbac.enabled=true --namespace $ns --tiller-namespace $ns`
+    - `helm upgrade brigade-project brigade/brigade-project --install --set project=<component>,repository=github.com/$repo,cloneURL=git@github.com:$repo.git,sshKey="$(cat ~/.ssh/id_rsa)" 
+    - `kubeherd render brigade.js > brigade.js`
+    - `brig run <component> --event deployment --file brigade.js`
+  
 - `kubeherd apply <component> --path $path`
   - Populate `GIT_TAG` env var with `git describe --tags --always 2>/dev/null`
   - If `$path/helmfile` exists:
