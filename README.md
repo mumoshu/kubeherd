@@ -118,3 +118,59 @@ Which periodically invokes the following steps to sync the infrastructure:
 Note: post-install job to `brig run` the per-microservice pipeline for initial deployment
 
 And after that, per-microservice brigade project is responsible to run the app deployment on each github webhook event.
+
+## Example setup
+
+Your whole projects structure would look like:
+
+
+* `GitHub/`
+  * `your-org/`
+    * `your-cluster-repo/`
+      * `environments/`
+        * test/
+          * `cluster-infra/`
+            * `helmfile`
+              * Create a brigade and a brigade-project per cluster into the k8s namespace `cluster-system`
+              * The brigade-project continuously pulls this git repo and sync your cluster state to the helmfile for each repo like `your-app1-repo`
+            * `brigade-project.values.yaml`
+            * `brigade-project.secrets.yaml.enc`
+          * `app-infra/`
+            * `helmfile`
+              * Create namespaces `your-app1-repo`
+              * Install a brigade and a brigade-project per app into the k8s namespace `your-app1-repo`
+              * Create a set of service accounts(tiller, brigade), RBAC(especially, "developer" role which is used by service accounts and the user authenticated via AWS IAM) and network policies in the namespace named `your-app1-repo` per app
+            * namespace-defaults.values.yaml
+            * brigade.values.yaml
+        * production/
+    * your-app1-repo/
+      * `ci/`
+        * `environments/`
+          * `$env/`
+            * `$env` specific `brigade.values.yaml` and/or `brigade.secrets.yaml`, used by the `app-infra` helmfile.
+        * `brigade.values.yaml`
+        * `brigade.secrets.yaml.enc`
+  
+## Example cluster-bootstrap sequence
+
+- `docker run --rm mumoshu/kuebherd init --upgdade -e $env -c $cluster -r github.com/your-org/your-cluster-repo -u yourbot -t name/of/ssm/parameter/containing/ssh/key/or/token` is run on one of k8s controller nodes so that(for example `$env=test` and `$cluster=k8stest1`. there could be 2 or more clusters per env for cluster blue-green deployment)
+  - `git clone github.com/your-org/your-cluster-repo`
+  - `cd your-cluster-repo/environments/$env`
+  - `sops -d brigade-project.secrets.yaml.enc > brigade-project.secrets.yaml`
+  - `CLUSTER=$cluster helmfile sync -f helmfile`
+    - `CLUSTER` is embeded into ENV of the brigade project so that it can be accessed from within the pipeline
+  - A cluster-level brigade pipeline is created
+  - App-level brigade pipeline(s) are created
+- The cluster-level brigade pipeline runs the following steps on each webhook event(github deployment) for `github.com/your-org/your-cluster-repo`
+  - `git clone github.com/your-org/your-cluster-repo`
+  - `cd your-cluster-repo/environments/$env`
+  - `sops -d brigade-project.secrets.yaml.enc > brigade-project.secrets.yaml`
+  - `CLUSTER=$cluster helmfile sync -f helmfile`
+  - The brigade pipeline for the cluster is updated
+- The app-level brigade pipeline runs the following steps on each webhook event(github deployment) for `github.com/your-org/your-app1-repo`
+  - `git clone github.com/your-org/your-app1-repo`
+  - `cd your-app1-repo/ci/environments/$env`
+  - `sops -d brigade-project.secrets.yaml.enc > brigade-project.secrets.yaml`
+  - `helmfile sync -f ../../ci/helmfile`
+  - The app-level brigade-pipeline is updated
+  - The app managed by the pipeline is updated
