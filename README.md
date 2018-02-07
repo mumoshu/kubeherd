@@ -192,9 +192,14 @@ On the first run:
   - The brigade pipeline for the cluster is updated
   - for app in $apps:
     - `kubeherd bootstrap worker -e $env -c $cluster -r github.com/your-org/your-$app-repo -u yourbot -t name/of/ssm/parameter/containing/ssh/key/or/token`
-`
-      - Network and RBAC policies for the namespace are created. Fail if existed.
-      - App-level brigade pipeline is created. Fail if existed.
+      - `helm install --set env=$env,cluster=$cluster,repo=github.com/your-org/your-$app-repo,user=yourbot,token=$(aws ssm get-parameger name/of/ssm/parameter/containing/ssh/key/or/token)`
+        - App-level brigade pipeline is created. Fail if existed.
+      - `brig run` the brigade.js for bootstrapping included in kubeherd
+        - `git clone github.com/your-org/your-cluster-repo`
+        - `cd your-cluster-repo/environments/$env/worker`
+        - `sops -d brigade-project.secrets.yaml.enc > brigade-project.secrets.yaml`
+        - `CLUSTER=$cluster helmfile sync -f helmfile`
+          - Network and RBAC policies for the namespace are created. Fail if existed.
 
 On subsequent runs, the following steps on each webhook event(github deployment) for `github.com/your-org/your-cluster-repo`
 
