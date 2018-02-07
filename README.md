@@ -153,12 +153,31 @@ Your whole projects structure would look like:
 
 ## Commands
 
+- `kubeherd ssm put $name $value`
+  - `aws ssm put-parameter --name "$name" --value "$value" --type String --overwrite`
 
-- `kubeherd deploy brigade --namespace $ns`
+- `kubeherd ssm get $name`
+  - `aws ssm get-parameters --names "$name" | jq -rc '.Parameters[0].Value'
+
+- `kubeherd init [--namespace $ns] --repository=$repo --ssh-key-from-ssm-parameter=$param`
+  - Runs:
+    - `kubeherd ssm get $param > tmp-key`
+    - `kubeherd init --namespace $ns --repository=$repo --ssh-key-from-path=tmp-key`
+    - `rm tmp-key`
+
+- `kubeherd init [--namespace $ns] --repository=$repo --ssh-key-from-path=$key`
   - Runs:
     - `helm repo add brigade https://azure.github.io/brigade`
     - `helm upgrade brigade brigade/brigade --install --set rbac.enabled=true --namespace $ns --tiller-namespace $ns`
-    - `helm upgrade brigade-project brigade/brigade-project --install --set project=<component>,repository=github.com/$repo,cloneURL=git@github.com:$repo.git,sshKey="$(cat ~/.ssh/id_rsa)"`
+    - `echo 'sshKey: |' > values.yaml
+    - `cat $key | sed 's/^/  /' >> values.yaml
+    - `helm upgrade brigade-project brigade/brigade-project --install --set project=<component>,repository=github.com/$repo,cloneURL=git@github.com:$repo.git -f values.yaml`
+
+- `kubeherd run "$cmd" [--namespace $ns] [--image $image] [--commit $commit]`
+  - Runs:
+     - `echo 'const { events, Job, Group} = require("brigadier"); events.on("run", (e, p) => { var j = new Job("kubeherd-run", "$image"); j.tasks = ["'$cmd'"]; j.run() });' > tmp-brigade.js`
+     - `brig run $ns --event run --file tmp-brigade.js`
+     - `rm tmp-brigade.js`
 
 - `kubeherd bootstrap <component> --repository $repo --path environments/$env/<component> --namespace $ns`
   - Runs:
@@ -168,7 +187,7 @@ Your whole projects structure would look like:
   
 - `kubeherd apply <component> --path $path`
   - Runs:
-    - `kubeherd deploy brigade --namespace $ns` (if required by the project)
+    - `kubeherd init --namespace $ns` (if required by the project)
     - Populate `GIT_TAG` env var with `git describe --tags --always 2>/dev/null`
     - If `$path/helmfile` exists:
       - Run `helmfile sync -f helmfile`
