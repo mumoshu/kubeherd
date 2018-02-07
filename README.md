@@ -153,6 +153,8 @@ Your whole projects structure would look like:
 
 ## Commands
 
+### `brigadm` for operations on single brigade instance
+
 - `brigadm ssm put $name $value`
   - `aws ssm put-parameter --name "$name" --value "$value" --type String --overwrite`
 
@@ -183,6 +185,14 @@ Your whole projects structure would look like:
 - `brigadm wait init --namespace $ns`
   - `while ! brig project list --namespace $ns; do sleep 1; done`
 
+### `brigcluster` for operating on cluster of brigade instances
+
+`brigadecluster` operates on `master` and `worker`.
+
+`master` has a dedicated github repository containing its desired state per env. The desired state may contain a default brigade.json used by master(brigade.master.default.js) and workers(brigade.worker.default.js).
+
+`worker` has a dedicated github repository containing its desired state per env. The desired state may contain a default brigade.json used by the worker(brigade.js). This brigade.js is preffered over the `brigade.worker.default.js` from the master repo.
+
 - `brigcluster master init --repository $sys_repo --environmnent $env --path environments/$env/<component> --namespace $sys_ns --ssh-key-from-ssm-parameter=$key`
   - Runs:
     - `if ! brigadm status; then brigadm init --namespace ${sys_ns}-boot --repository=$kubeherd_repo --ssh-key-from-ssm-parameter=$key; fi`
@@ -196,6 +206,8 @@ Your whole projects structure would look like:
   - `brigadm run "default_script=environments/$env/brigade.default.js; brigadm init --namespace $app --repository $repo --ssh-key-from-path$key --default-script $default_script" --namespace $kubeherd_ns --image $image; brig run $app --namespace $app --event init``
 
 - `brigcluster worker update $app --repository $repo --environment $env --namespace $kubeherd_ns --image $image`
+
+#### `sdf4k`(Simple Deployment Facade for Kubernetes) for consistent deployment experience regardless of tools
   
 - `sdf4k $path --namespace $ns`
   - Runs:
