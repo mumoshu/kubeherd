@@ -184,8 +184,9 @@ Note that, `$env=test` and `$cluster=k8stest1` for example. There could be 2 or 
 
 - `kubeherd bootstrap <component> --repository $repo --path environments/$env/<component> --namespace $ns`
   - Runs:
+    - `helm repo add brigade https://azure.github.io/brigade`
     - `helm upgrade brigade brigade/brigade --install --set rbac.enabled=true --namespace $ns --tiller-namespace $ns`
-    - `helm upgrade brigade-project brigade/brigade-project --install --set project=<component>,repository=github.com/$repo,cloneURL=git@github.com:$repo.git,sshKey="$(cat ~/.ssh/id_rsa)" 
+    - `helm upgrade brigade-project brigade/brigade-project --install --set project=<component>,repository=github.com/$repo,cloneURL=git@github.com:$repo.git,sshKey="$(cat ~/.ssh/id_rsa)"`
     - `kubeherd render brigade.js > brigade.js`
     - `brig run <component> --event deployment --file brigade.js`
   
