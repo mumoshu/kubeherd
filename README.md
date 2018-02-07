@@ -150,6 +150,32 @@ Your whole projects structure would look like:
             * `$env` specific `brigade.values.yaml` and/or `brigade.secrets.yaml`, used by the `app-infra` helmfile.
         * `brigade.values.yaml`
         * `brigade.secrets.yaml.enc`
+
+## Commands
+
+
+- `kubeherd deploy brigade --namespace $ns`
+  - Runs:
+    - `helm repo add brigade https://azure.github.io/brigade`
+    - `helm upgrade brigade brigade/brigade --install --set rbac.enabled=true --namespace $ns --tiller-namespace $ns`
+    - `helm upgrade brigade-project brigade/brigade-project --install --set project=<component>,repository=github.com/$repo,cloneURL=git@github.com:$repo.git,sshKey="$(cat ~/.ssh/id_rsa)"`
+
+- `kubeherd bootstrap <component> --repository $repo --path environments/$env/<component> --namespace $ns`
+  - Runs:
+    - `kubeherd deploy brigade --namespace $ns`
+    - `git clone https://github.com/mumoshu/kubeherd`
+    - `brig run <component> --event deployment --file kubeherd/<component>/brigade.js`
+  
+- `kubeherd apply <component> --path $path`
+  - Runs:
+    - `kubeherd deploy brigade --namespace $ns` (if required by the project)
+    - Populate `GIT_TAG` env var with `git describe --tags --always 2>/dev/null`
+    - If `$path/helmfile` exists:
+      - Run `helmfile sync -f helmfile`
+    - If `chart/chart.yaml` exists:
+      - Run `helm upgrade <component> ./chart --install -f <values.yaml> -f <secrets.yaml>`
+    - If `app.yaml` exists:
+      - `ks apply default`
   
 ## Example cluster-bootstrap~app-deployment sequence
 
@@ -181,23 +207,6 @@ Note that, `$env=test` and `$cluster=k8stest1` for example. There could be 2 or 
   - A pipeline consists of a brigade cluster and 1 or more brigade project(s)
 
 **On the cluster-level, brigade-managing pipeline:**
-
-- `kubeherd bootstrap <component> --repository $repo --path environments/$env/<component> --namespace $ns`
-  - Runs:
-    - `helm repo add brigade https://azure.github.io/brigade`
-    - `helm upgrade brigade brigade/brigade --install --set rbac.enabled=true --namespace $ns --tiller-namespace $ns`
-    - `helm upgrade brigade-project brigade/brigade-project --install --set project=<component>,repository=github.com/$repo,cloneURL=git@github.com:$repo.git,sshKey="$(cat ~/.ssh/id_rsa)"`
-    - `kubeherd render brigade.js > brigade.js`
-    - `brig run <component> --event deployment --file brigade.js`
-  
-- `kubeherd apply <component> --path $path`
-  - Populate `GIT_TAG` env var with `git describe --tags --always 2>/dev/null`
-  - If `$path/helmfile` exists:
-    - Run `helmfile sync -f helmfile`
-  - If `chart/chart.yaml` exists:
-    - Run `helm upgrade <component> ./chart --install -f <values.yaml> -f <secrets.yaml>`
-  - If `app.yaml` exists:
-    - `ks apply default`
 
 On the first run:
 
