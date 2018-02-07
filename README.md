@@ -163,8 +163,8 @@ Your whole projects structure would look like:
 
 - `brigadm init --namespace $ns] --repository=$repo --ssh-key-from-ssm-parameter=$param`
   - Runs:
-    - `kubeherd ssm get $param > tmp-key`
-    - `kubeherd init --namespace $ns --repository=$repo --ssh-key-from-path=tmp-key`
+    - `brigadm ssm get $param > tmp-key`
+    - `brigadm init --namespace $ns --repository=$repo --ssh-key-from-path=tmp-key`
     - `rm tmp-key`
 
 - `brigadm init [--namespace $ns] --repository=$repo --ssh-key-from-path=$key` [--default-script-from-path=$script]
@@ -193,7 +193,7 @@ Your whole projects structure would look like:
 
 `worker` has a dedicated github repository containing its desired state per env. The desired state may contain a default brigade.json used by the worker(brigade.js). This brigade.js is preffered over the `brigade.worker.default.js` from the master repo.
 
-- `brigcluster master init --repository $sys_repo --environmnent $env --path environments/$env/<component> --namespace $sys_ns --ssh-key-from-ssm-parameter=$key`
+- `brigcluster master create --repository $sys_repo --environmnent $env --path environments/$env/<component> --namespace $sys_ns --ssh-key-from-ssm-parameter=$key`
   - Runs:
     - `if ! brigadm status; then brigadm init --namespace ${sys_ns}-boot --repository=$kubeherd_repo --ssh-key-from-ssm-parameter=$key; fi`
     - `brigadm run "if [ -e $path/brigade.default.js ]; then cp /kubeherd/brigade.default.$path/; fi; brigadm init --namespace $sys_ns --repository=$sys_repo --ssh-key-from-ssm-paramaeter=$key --default-script=$path/brigade.default.js" --namespace ${sys_ns} --
@@ -203,9 +203,9 @@ Your whole projects structure would look like:
 - `brigcluster master update --repository $sys_repo --environmnent $env --path environments/$env/<component> --namespace $sys_ns --ssh-key-from-ssm-parameter=$key`
 
 - `brigcluster worker init $app --repository $repo --environment $env --namespace $kubeherd_ns --image $image`
-  - `brigadm run "default_script=environments/$env/brigade.default.js; brigadm init --namespace $app --repository $repo --ssh-key-from-path$key --default-script $default_script" --namespace $kubeherd_ns --image $image; brig run $app --namespace $app --event init``
+  - `brigadm run "default_script=environments/$env/brigade.default.js; brigadm init --namespace $app --repository $repo --ssh-key-from-path$key --default-script $default_script" --namespace $kubeherd_ns --image $image; brig run $app --namespace $app --event init`
 
-- `brigcluster worker update $app --repository $repo --environment $env --namespace $kubeherd_ns --image $image`
+- `brigcluster worker create $app --repository $repo --environment $env --namespace $kubeherd_ns --image $image`
 
 #### `sdf4k`(Simple Deployment Facade for Kubernetes) for consistent deployment experience regardless of tools
   
