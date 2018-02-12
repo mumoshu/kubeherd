@@ -1,0 +1,85 @@
+#!/usr/bin/env variant
+
+flows:
+- name: ssm
+  flows:
+  - name: put
+    inputs:
+    - name: name
+      argument-index: 0
+    - name: value
+      argument-index: 1
+    script: |
+      aws ssm put-parameter --name "{{.name}}" --value "{{.value}}" --type String --overwrite
+  - name: get
+    inputs:
+    - name: name
+      argument-index: 0
+    script: |
+      aws ssm get-parameters --names "{{.name}}" | jq -rc '.Parameters[0].Value
+
+- name: init-with-ssm
+  inputs:
+  - name: namespace
+  - name: name
+  - name: ssh-key-from-ssm-parameter
+  - name: script
+  script: |
+    brigadm ssm get {{.ssh_key_from_ssm_parameter}} > tmp-key
+    brigadm init --namespace {{.namespace}} --name={{.name}} --ssh-key-from-path=tmp-key --script={{.script}}
+    rm tmp-key
+
+- name: boostrap
+  inputs:
+  - name: name
+  - name: org
+  - name: bootstrap-repo
+  - name: ssh-key
+  - name: path-to-script
+    description: path to the default brigade script used by the resulting brigade project
+  script: |
+    if ! brigadm status; then brigadm init --namespace {{.name}} --repository={{.org}}/{{.bootstrap_repo}} --ssh-key-from-ssm-parameter={{.ssh_key}}; fi
+    run=$(cat <<-BASH
+      brigadm init --namespace {{.name}} --repository={{.name}} --ssh-key-from-ssm-paramaeter={{.ssh_key}} --default-script={{.path_to_script}}
+    BASH
+    )
+    brigadm run "$run" --namespace {{.name}}
+    brigadm wait --namespace {{.name}}
+    brig run {{.name}} --namespace {{.name}} --event init
+
+- name: init
+  inputs:
+  - name: namespace
+  - name: ssh-key-from-path
+  - name: script
+  - name: name
+  script: |
+    if ! helm repo list | grep brigade; then
+      helm repo add brigade https://azure.github.io/brigade
+    fi
+    helm upgrade brigade brigade/brigade --install --set rbac.enabled=true --namespace {{.namespace}} --tiller-namespace {{.namespace}}
+    echo 'sshKey: |' > values.yaml
+    cat {{.ssh_key_from_path}} | sed 's/^/  /' >> values.yaml
+    echo 'defaultScript: |' >> values.yaml
+    cat {{.script}} | sed 's/^/  /' >> values.yaml
+    helm upgrade brigade-project brigade/brigade-project --install --set project={{.name}},repository=github.com/{{.name}},cloneURL=git@github.com:{{.name}}.git -f values.yaml
+
+- name: run
+  inputs:
+  - name: command
+    argument-index: 0
+  - name: namespace
+  - name: image
+  - name: commit
+  script: |
+     echo 'const { events, Job, Group} = require("brigadier"); events.on("run", (e, p) => { var j = new Job("brigadm-run", "{{.image}}"); j.tasks = ["'{{.command}}'"]; j.run() });' > tmp-brigade.js
+     brig run {{.namespace}} --namespace {{.namespace}} --event run --file tmp-brigade.js
+     rm tmp-brigade.js
+
+- name: wait
+  flows:
+  - name: init
+    inputs:
+    - name: namespace
+    script: |
+      while ! brig project list --namespace {{.namespace}}; do sleep 1; done

@@ -178,7 +178,7 @@ Your whole projects structure would look like:
 
 - `brigadm run "$cmd" [--namespace $ns] [--image $image] [--commit $commit]`
   - Runs:
-     - `echo 'const { events, Job, Group} = require("brigadier"); events.on("run", (e, p) => { var j = new Job("kubeherd-run", "$image"); j.tasks = ["'$cmd'"]; j.run() });' > tmp-brigade.js`
+     - `echo 'const { events, Job, Group} = require("brigadier"); events.on("run", (e, p) => { var j = new Job("brigadm-run", "$image"); j.tasks = ["'$cmd'"]; j.run() });' > tmp-brigade.js`
      - `brig run $ns --namespace $ns --event run --file tmp-brigade.js`
      - `rm tmp-brigade.js`
 
