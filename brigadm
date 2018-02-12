@@ -32,15 +32,18 @@ flows:
 - name: boostrap
   inputs:
   - name: name
+    description: the github repository name = application name = namespace name
   - name: org
-  - name: bootstrap-repo
+    description: the github organization name
+  - name: brigade-script-repo
+    decription: the github repo contains the default brigade script(brigade.js) used when the target repo misses brigade.js
   - name: ssh-key
-  - name: path-to-script
+  - name: brigade-script-path
     description: path to the default brigade script used by the resulting brigade project
   script: |
-    if ! brigadm status; then brigadm init --namespace {{.name}} --repository={{.org}}/{{.bootstrap_repo}} --ssh-key-from-ssm-parameter={{.ssh_key}}; fi
+    if ! brigadm status; then brigadm init --namespace {{.name}} --repository={{.org}}/{{.brigade_script_repo}} --ssh-key-from-ssm-parameter={{.ssh_key}}; fi
     run=$(cat <<-BASH
-      brigadm init --namespace {{.name}} --repository={{.name}} --ssh-key-from-ssm-paramaeter={{.ssh_key}} --default-script={{.path_to_script}}
+      brigadm init --namespace {{.name}} --repository={{.org}}/{{.name}} --ssh-key-from-ssm-paramaeter={{.ssh_key}} --default-script={{.brigade_script_path}}
     BASH
     )
     brigadm run "$run" --namespace {{.name}}

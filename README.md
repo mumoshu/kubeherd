@@ -187,7 +187,7 @@ Your whole projects structure would look like:
 
 ### `brigcluster` for operating on cluster of brigade instances
 
-`brigadecluster` operates on `master` and `worker`.
+`brigcluster` operates on `master` and `worker`.
 
 `master` has a dedicated github repository containing its desired state per env. The desired state may contain a default brigade.json used by master(brigade.master.default.js) and workers(brigade.worker.default.js).
 
@@ -225,17 +225,21 @@ Your whole projects structure would look like:
 **On a k8s controller node's userdata:**
 
 ```
-docker run --rm mumoshu/kubeherd bootstrap master \
+docker run --rm mumoshu/brigadm bootstrap \
+  --name your-cluster-repo \
+  --org your-github-org \
+  --ssh-key ssm/parameter/key/for/ssh/key \
+  --brigade-script-repo your-cluster-repo \
+  --brigade-script-path path/to/brigade/js \
   -e $env \
   -c $cluster \
-  -r github.com/your-org/your-cluster-repo \
   -u yourbot \
   -t name/of/ssm/parameter/containing/ssh/key/or/token`
 ```
 
 Note that, `$env=test` and `$cluster=k8stest1` for example. There could be 2 or more clusters per env for cluster blue-green deployment.
 
-`kubeherd bootstrap master` triggers the following sequence:
+`brigadm bootstrap` triggers the following sequence:
 
 - `helm install --set env=$env,cluster=$cluster,repo=github.com/your-org/your-cluster-repo,user=yourbot,token=$(aws ssm get-parameger name/of/ssm/parameter/containing/ssh/key/or/token`)`
   - which installs a brigade cluster and a project for bootstrapping
@@ -255,12 +259,12 @@ On the first run:
 
 - `git clone github.com/your-org/your-cluster-repo`
 - `cd your-cluster-repo/environments/$env`
-- `kubeherd bootstrap master`
+- `brigadm bootstrap`
   - `sops -d brigade-project.secrets.yaml.enc > brigade-project.secrets.yaml`
   - `CLUSTER=$cluster helmfile sync -f helmfile`
   - The brigade pipeline for the cluster is updated
   - for app in $apps:
-    - `kubeherd bootstrap worker -e $env -c $cluster -r github.com/your-org/your-$app-repo -u yourbot -t name/of/ssm/parameter/containing/ssh/key/or/token`
+    - `brigadm bootstrap --name $app --brigade-script-repo $cluster_repo --brigade-script-path path/to/app/brigade/js -e $env -c $cluster -r github.com/your-org/your-$app-repo -u yourbot -t name/of/ssm/parameter/containing/ssh/key/or/token`
       - `helm install --set env=$env,cluster=$cluster,repo=github.com/your-org/your-$app-repo,user=yourbot,token=$(aws ssm get-parameger name/of/ssm/parameter/containing/ssh/key/or/token)`
         - App-level brigade pipeline is created. Fail if existed.
       - `brig run` the brigade.js for bootstrapping included in kubeherd
